@@ -1045,8 +1045,8 @@
    * Leave both empty and the leaderboard says it isn't switched on yet.
    */
   const LB = {
-    url: '',
-    key: '',
+    url: 'https://qxlixocgdmhgxwwpfwta.supabase.co',
+    key: 'sb_publishable_0Tcaxru2J2R0jk-LDINZ4A_a2ZUhajf',
   };
   const uuid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));

@@ -17,7 +17,7 @@ Everyone gets the same set each day. Puzzle No. 1 is 9 November 2026.
 
 ## Leaderboard
 
-Set `LB.url` and `LB.key` near the top of the leaderboard section in `plumb.js` to the Supabase project's URL and **publishable** key. With both empty, the game still works and the leaderboard says it isn't switched on yet.
+Scores go to Plumb's own Supabase project (`qxlixocgdmhgxwwpfwta`). Its URL and **publishable** key are set in `LB` in `plumb.js`; the publishable key is meant to be public, and the table's rules decide what it can do. Clear both and the game still works, with the leaderboard switched off.
 
 ## Hosting
 
