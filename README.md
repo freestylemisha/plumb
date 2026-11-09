@@ -1,5 +1,7 @@
 # Plumb
 
+Play: **https://plumb.dailyplumb.workers.dev**
+
 A daily test of physical intuition. Five tests, two rounds each, scored out of 1000:
 
 - **Level**: a glass of water tilts. Draw where the surface sits.
@@ -21,4 +23,4 @@ Scores go to Plumb's own Supabase project (`qxlixocgdmhgxwwpfwta`). Its URL and 
 
 ## Hosting
 
-Any static host works. On GitHub Pages: Settings → Pages → Deploy from a branch → `main`, folder `/ (root)`.
+Hosted on Cloudflare Workers as static files (`wrangler.jsonc`). Every push to `main` redeploys it. `.assetsignore` keeps everything except the game files off the site.
