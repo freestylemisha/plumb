@@ -1,0 +1,9 @@
+# Only the game itself goes on the website.
+.git
+.gitignore
+.assetsignore
+wrangler.jsonc
+README.md
+supabase-setup.sql
+node_modules
+.wrangler
