@@ -109,6 +109,7 @@
       ink: v('--ink'), ink2: v('--ink-2'), ink3: v('--ink-3'),
       line: v('--line'), lineStrong: v('--line-strong'),
       level: v('--level'), spin: v('--spin'), lamp: v('--lamp'), hold: v('--hold'), bank: v('--bank'),
+      tape: v('--tape'), onTape: v('--on-tape'),
       sans: v('--font-sans'), mono: v('--font-mono'), display: v('--font-display'),
     };
   }
@@ -212,8 +213,10 @@
 
   const Level = {
     id: 'level', name: 'Level', unit: 'degrees',
-    brief: 'Where does the water sit now?',
-    howto: 'Drag across the glass to draw the surface. Redraw as often as you like.',
+    brief: 'Where is the water now?',
+    howto: 'Drag a line across the glass where the top of the water is. You can redraw it.',
+    steps: ['You see a glass with some water in it.', 'The glass tips over and the water is hidden.', 'Draw a line where the top of the water is now.'],
+    tip: 'Water always stays flat, however the glass is tilted. The amount of water doesn’t change either.',
     make(rng, k) {
       const pool = k === 0 ? ['tumbler', 'beaker', 'bowl'] : ['flask', 'bottle', 'bowl', 'tumbler'];
       const shape = pool[Math.floor(rng() * pool.length)];
@@ -237,7 +240,7 @@
       const tilted = rotPts(G.pts, LV.cx, LV.cy, th);
       const hT = levelFor(tilted, A * p.fill);
       let phase = 'watch', line = null, drag = null, revealAt = 0;
-      api.tag('Remember the water');
+      api.tag('Remember the water level');
 
       function drawGlass(P, angle) {
         g.path(P, true); ctx.globalAlpha = .55; ctx.fillStyle = C.bg2; ctx.fill(); ctx.globalAlpha = 1;
@@ -280,7 +283,7 @@
             if (t < 2.1) { drawGlass(up, 0); drawWater(up, hUp, 1); }
             else if (t < 2.45) { drawGlass(up, 0); drawWater(up, hUp, 1 - (t - 2.1) / .35); }
             else if (t < 3.4) { api.tag(''); const a = th * easeInOut((t - 2.45) / .95); drawGlass(rotPts(G.pts, LV.cx, LV.cy, a), a); }
-            else { phase = 'input'; api.tag('Drag to draw the water line'); api.input(); }
+            else { phase = 'input'; api.tag('Drag to draw the water’s surface'); api.input(); }
           }
           if (phase === 'input' || phase === 'reveal') {
             drawGlass(tilted, th);
@@ -328,7 +331,9 @@
   const Spin = {
     id: 'spin', name: 'Spin', unit: 'degrees',
     brief: 'Where will the red slice stop?',
-    howto: 'Watch it slow down. When the cover closes, tap the rim where the slice will come to rest.',
+    howto: 'Tap the edge of the wheel where you think the red slice ends up.',
+    steps: ['A wheel spins and slowly loses speed.', 'A cover hides it before it stops.', 'Tap the edge where the red slice will be when it stops.'],
+    tip: 'Watch how quickly it slows. The slower it gets, the less further it turns.',
     make(rng, k) {
       const dir = rng() < .5 ? -1 : 1;
       const alpha = lerp(50, 105, rng());                         // deceleration, °/s²
@@ -385,7 +390,7 @@
           if (phase === 'watch') {
             wheel(phiAt(t));
             if (t > p.T) cover(clamp((t - p.T) / .28, 0, 1));
-            if (t > p.T + .28) { phase = 'input'; api.input(); api.tag('Tap the rim'); }
+            if (t > p.T + .28) { phase = 'input'; api.input(); api.tag('Tap the edge of the wheel'); }
           } else if (phase === 'input') {
             cover(1);
             if (mark != null) marker(mark, C.ink);
@@ -435,7 +440,9 @@
   const Lamp = {
     id: 'lamp', name: 'Lamp', unit: 'metres',
     brief: 'Where is the lamp?',
-    howto: 'Each shadow points straight away from the light. Tap where the lamp hangs, then drag to adjust.',
+    howto: 'Tap where you think the lamp is. You can drag to move it.',
+    steps: ['A hidden lamp lights up some posts.', 'Each post casts a shadow on the ground.', 'Tap where the lamp is.'],
+    tip: 'Imagine a line from the end of each shadow over the top of its post. The lines meet at the lamp.',
     make(rng, k) {
       const n = k === 0 ? 2 : 3;
       for (let tries = 0; tries < 900; tries++) {
@@ -537,36 +544,31 @@
    * duration: a dated record, a rule, or plain physics.
    */
   const EVENTS = [
-    // under 5 s
-    { s: 1.28, k: 'Physics', t: 'Moonlight travelling from the Moon to your eyes', n: 'About 384,400 km at the speed of light.' },
-    { s: 2.92, k: 'Everyday physics', t: 'Thunder reaching you from a lightning strike 1 km away', n: 'Sound covers about 343 metres each second.' },
-    { s: 1.43, k: 'Physics', t: 'A ball dropped from 10 metres falling to the ground', n: 'Ignoring air: t = √(2h / g).' },
-    { s: 1.00, k: 'Physics', t: 'A 1-metre pendulum swinging from one side to the other', n: 'A pendulum that ticks once a second is 99.4 cm long.' },
-    { s: 4.21, k: 'American football', t: 'Xavier Worthy’s 40-yard dash at the 2024 NFL Combine', n: 'The fastest ever recorded at the Combine.' },
-    { s: 1.80, k: 'Formula 1', t: 'McLaren’s record pit stop at the 2023 Qatar Grand Prix', n: 'Four new tyres on Lando Norris’s car.' },
-    { s: 2.56, k: 'Space', t: 'A laser pulse travelling to the Moon and back', n: 'Apollo crews left mirrors on the Moon for exactly this.' },
-    { s: 0.79, k: 'Physics', t: 'A ball falling from basketball-hoop height (3.05 m)', n: 'Ignoring air: t = √(2h / g).' },
-    { s: 3.00, k: 'Basketball', t: 'How long an attacker may stand in the NBA paint', n: 'The three-second rule.' },
-    { s: 1.00, k: 'Physics', t: 'Light travelling seven and a half times around the Equator', n: 'Earth’s equator is 40,075 km round.' },
-    // 5 s and over
-    { s: 9.58, k: 'Athletics', t: 'Usain Bolt’s 100 m in Berlin, 2009', n: 'Still the world record.' },
-    { s: 12.0, k: 'History', t: 'The Wright brothers’ first powered flight', n: 'Kitty Hawk, 17 December 1903. About 37 metres.' },
-    { s: 8.00, k: 'Rodeo', t: 'The ride a bull rider must last to get a score', n: 'Eight seconds, in professional bull riding.' },
-    { s: 10.49, k: 'Athletics', t: 'Florence Griffith-Joyner’s 100 m in Indianapolis, 1988', n: 'Still the women’s world record.' },
-    { s: 13.0, k: 'Records', t: 'The longest recorded flight of a chicken', n: 'A Guinness record, set in 1985.' },
-    { s: 6.00, k: 'Internet', t: 'One Vine video', n: 'The looping-video app capped every clip at six seconds.' },
-    { s: 8.20, k: 'Physics', t: 'Falling from the top of the Eiffel Tower, if there were no air', n: '330 metres. With air, a person takes far longer.' },
-    { s: 5.00, k: 'Basketball', t: 'The time an NBA player has to throw the ball in', n: 'The five-second inbound rule.' },
+    // under 6 s
+    { s: 1.0, k: 'Counting', t: 'Saying “one Mississippi”', n: 'The classic way to count one second out loud.' },
+    { s: 1.0, k: 'Your body', t: 'One heartbeat, at a calm 60 beats a minute', n: '60 beats a minute is one beat every second.' },
+    { s: 3.0, k: 'Weather', t: 'Thunder reaching you from lightning 1 km away', n: 'Sound takes about 3 seconds to travel 1 km. Count to see how far a storm is.' },
+    { s: 3.0, k: 'Myth', t: 'A goldfish’s famous memory span', n: 'The “3-second memory” is a myth. Goldfish remember things for months.' },
+    { s: 5.0, k: 'Kitchen', t: 'The “five-second rule” for food dropped on the floor', n: 'Five seconds. Germs don’t actually wait, though.' },
+    { s: 5.0, k: 'Online', t: 'Waiting for YouTube’s “Skip ad” button', n: 'Skippable ads can be skipped after 5 seconds.' },
+    // 6 s and over
+    { s: 9.58, k: 'Sport', t: 'Usain Bolt running 100 metres', n: 'His world record, set in 2009.' },
+    { s: 10.0, k: 'Celebration', t: 'A New Year’s countdown, from “ten” to “Happy New Year!”', n: 'Ten seconds, one number each.' },
+    { s: 20.0, k: 'Health', t: 'Washing your hands properly', n: 'Doctors say at least 20 seconds, about two rounds of “Happy Birthday”.' },
+    { s: 19.19, k: 'Sport', t: 'Usain Bolt running 200 metres', n: 'His world record, set in 2009. Roughly twice his 100 m time.' },
+    { s: 15.0, k: 'Kitchen', t: 'A microwave set to 15 seconds', n: 'Exactly what it says on the display.' },
   ];
-  const SHORT = EVENTS.filter((e) => e.s < 5), LONG = EVENTS.filter((e) => e.s >= 5);
+  const SHORT = EVENTS.filter((e) => e.s < 6), LONG = EVENTS.filter((e) => e.s >= 6);
   const fmtS = (s) => (s >= 10 ? s.toFixed(2) : s.toFixed(2));
   const PAD = { x: 400, y: 428, r: 76 };
 
   const Hold = {
     id: 'hold', name: 'Hold', unit: 'seconds',
     brief: 'How long does it last?',
-    howto: 'Press and hold the circle, or Space. Let go when it would be over. One try.',
-    lockLabel: 'Hold the circle',
+    howto: 'Press and hold the button. Let go when you think it would be over. One try.',
+    steps: ['You read an everyday moment.', 'Press and hold the button.', 'Let go when you think the moment would be over.'],
+    tip: 'There’s no clock to look at. Count in your head if it helps.',
+    lockLabel: 'Hold the button',
     make(rng, k) {
       const list = k === 0 ? SHORT : LONG;
       return { e: list[Math.floor(rng() * list.length)] };
@@ -597,15 +599,15 @@
         frame() {
           const t = api.now();
           g.text(ev.k.toUpperCase(), 56, 84, { font: 'mono', size: 13, color: C.ink3, track: 1.5 });
-          const yEnd = g.wrap(ev.t, 56, 136, 688, 48, { font: 'display', size: 42, weight: 400, color: C.ink });
+          const yEnd = g.wrap(ev.t, 56, 136, 688, 48, { font: 'display', size: 44, weight: 700, color: C.ink });
           if (phase === 'input') {
             const sq = pressing ? .95 : 1;
             g.circle(PAD.x, PAD.y, PAD.r * sq, pressing ? C.hold : C.surface, pressing ? C.hold : C.lineStrong, 1.5);
             if (!pressing) g.circle(PAD.x, PAD.y, PAD.r * .3, C.hold);
-            g.text(pressing ? 'Let go when it ends' : 'Press and hold', PAD.x, PAD.y + PAD.r + 34, { size: 15, weight: 550, color: C.ink2, align: 'center' });
+            g.text(pressing ? 'Let go when it’s over' : 'Press and hold', PAD.x, PAD.y + PAD.r + 34, { size: 15, weight: 550, color: C.ink2, align: 'center' });
           } else {
             const k = easeOut(clamp((t - revealAt) / .8, 0, 1));
-            const noteEnd = g.wrap(ev.n, 56, yEnd + g.size(42, 'display') * .95, 688, 24, { size: 17, color: C.ink2 });
+            const noteEnd = g.wrap(ev.n, 56, yEnd + g.size(44, 'display') * .95, 688, 24, { size: 17, color: C.ink2 });
             const max = Math.max(held, ev.s) * 1.16;
             const x0 = 56, x1 = 744, sx = (v) => x0 + (x1 - x0) * v / max;
             const step = max <= 2.5 ? .5 : max <= 9 ? 1 : 2;
@@ -658,8 +660,10 @@
 
   const Bank = {
     id: 'bank', name: 'Bank', unit: 'centimetres',
-    brief: 'Where does the ball meet the far rail?',
-    howto: 'No spin, so it leaves each cushion at the angle it arrived. Tap the right-hand rail where it lands.',
+    brief: 'Where does the ball reach the right side?',
+    howto: 'Tap the right-hand side of the table where you think the ball arrives.',
+    steps: ['A ball starts rolling across a pool table.', 'It disappears but keeps going, bouncing off the top and bottom sides.', 'Tap the right-hand side where it will arrive.'],
+    tip: 'A ball bounces off a side at the same angle it hit it, like light in a mirror.',
     make(rng, k) {
       for (let i = 0; i < 600; i++) {
         const y0 = lerp(TB.t + 50, TB.b - 50, rng());
@@ -717,7 +721,7 @@
             const fade = t < SHOW ? 1 : clamp(1 - (t - SHOW) / .2, 0, 1);
             if (x > TB.x0 + 2) trail(Math.max(TB.x0, x - 130), x, C.bank, .5 * fade, 3);
             ctx.globalAlpha = fade; g.circle(x, path.yAt(x), TB.ball, C.ink); ctx.globalAlpha = 1;
-            if (t > SHOW + .25) { phase = 'input'; api.input(); api.tag('Tap the right-hand rail'); }
+            if (t > SHOW + .25) { phase = 'input'; api.input(); api.tag('Tap the right-hand side'); }
           } else if (phase === 'input') {
             g.circle(TB.x0, p.y0, TB.ball, null, C.lineStrong, 1.5);
             if (mark != null) railMark(mark, C.ink);
@@ -782,6 +786,7 @@
     playedNote: $('#playedNote'), practiceBtn: $('#practiceBtn'),
     rIdx: $('#rIdx'), rTask: $('#rTask'), rName: $('#rName'), rMeta: $('#rMeta'), progress: $('#progress'),
     tag: $('#stageTag'), copy: $('#copy'), brief: $('#brief'), howto: $('#howto'),
+    howCard: $('#howCard'), howKicker: $('#howKicker'), howTitle: $('#howTitle'), howSteps: $('#howSteps'), howTip: $('#howTip'),
     verdict: $('#verdict'), vScore: $('#vScore'), vHead: $('#vHead'), vDetail: $('#vDetail'), act: $('#act'),
   };
 
@@ -819,8 +824,8 @@
     set.forEach((r, i) => {
       const li = document.createElement('li');
       li.style.setProperty('--t', `var(--${TESTS[r.ti].id})`);
-      if (i < scores.length) li.style.setProperty('--fill', `${Math.max(scores[i], 3)}%`);
-      if (i === idx) li.dataset.state = 'current';
+      if (i === idx && state !== 'next') li.dataset.state = 'current';
+      else if (scores[i] != null && i <= idx) { li.dataset.state = 'done'; li.textContent = scores[i]; }
       el.progress.appendChild(li);
     });
   }
@@ -864,12 +869,40 @@
     el.brief.textContent = T.brief;
     el.howto.textContent = T.howto;
     el.copy.hidden = false; el.verdict.hidden = true;
-    el.act.textContent = 'Watch'; el.act.disabled = true;
     cv.setAttribute('aria-label', `${T.name}: ${T.brief}`);
-    state = 'watch';
     api.tag('');
-    renderProgress();
     readColors();
+    if (r.k === 0) {
+      // first round of a test: explain it before anything moves
+      ctrl = null;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+      el.howCard.style.setProperty('--t', `var(--${T.id})`);
+      el.howKicker.textContent = `Test ${r.ti + 1} of ${TESTS.length} · how it works`;
+      el.howTitle.textContent = T.name;
+      el.howSteps.innerHTML = '';
+      for (const step of T.steps) { const li = document.createElement('li'); li.textContent = step; el.howSteps.append(li); }
+      el.howTip.textContent = T.tip || '';
+      el.howCard.hidden = false;
+      el.howCard.parentElement.dataset.brief = '';
+      el.howto.textContent = '';
+      state = 'brief';
+      el.act.textContent = 'Start'; el.act.disabled = false;
+      renderProgress();
+      el.act.focus({ preventScroll: true });
+      return;
+    }
+    beginRound();
+  }
+
+  function beginRound() {
+    const r = set[idx];
+    el.howCard.hidden = true;
+    delete el.howCard.parentElement.dataset.brief;
+    resize();
+    el.howto.textContent = T.howto;
+    el.act.textContent = 'Watch'; el.act.disabled = true;
+    state = 'watch';
+    renderProgress();
     mountT = performance.now();
     ctrl = T.mount(r.p, api);
   }
@@ -886,16 +919,17 @@
       el.vHead.textContent = res.head;
       el.vDetail.textContent = res.detail;
       el.copy.hidden = true; el.verdict.hidden = false;
+      state = 'next';
       renderProgress();
       el.act.textContent = idx === ROUNDS - 1 ? 'See results' : 'Next';
       el.act.disabled = false;
-      state = 'next';
       el.act.focus({ preventScroll: true });
     }, res.delay || 600);
   }
 
   el.act.addEventListener('click', () => {
-    if (state === 'input' && ctrl.submit) finishRound(ctrl.submit());
+    if (state === 'brief') beginRound();
+    else if (state === 'input' && ctrl.submit) finishRound(ctrl.submit());
     else if (state === 'next') {
       if (idx >= ROUNDS - 1) { ctrl = null; renderEnd(); }
       else { idx++; startRound(); }
@@ -921,7 +955,9 @@
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
 
   document.addEventListener('keydown', (e) => {
-    if (el.run.hidden || !ctrl) return;
+    if (el.run.hidden) return;
+    if (state === 'brief' && e.key === 'Enter' && document.activeElement !== el.act) { e.preventDefault(); el.act.click(); return; }
+    if (!ctrl) return;
     if (e.key === ' ' && ctrl.keyDown && state === 'input') { e.preventDefault(); if (!e.repeat) ctrl.keyDown(); return; }
     if ((e.key === 'Enter' || e.key === ' ') && !el.act.disabled && document.activeElement !== el.act) { e.preventDefault(); el.act.click(); }
   });
@@ -975,19 +1011,27 @@
     $('#endRank').textContent = rank;
     $('#endBlurb').textContent = blurb;
 
-    const bars = $('#bars'); bars.innerHTML = '';
+    const reading = $('#reading'); reading.innerHTML = '<div class="reading__tape"></div>';
+    for (let v = 100; v < 1000; v += 100) {
+      const n = document.createElement('span');
+      n.className = 'reading__num'; n.style.left = `${v / 10}%`; n.style.top = '42px'; n.textContent = v;
+      if (v % 200) n.dataset.minor = '';
+      reading.append(n);
+    }
+    const mk = document.createElement('div');
+    mk.className = 'reading__mark'; mk.style.left = `${total / 10}%`;
+    if (total > 780) mk.dataset.flip = '';
+    mk.innerHTML = '<span></span>'; mk.firstChild.textContent = `${total}`;
+    reading.append(mk);
+
     const rows = $('#rows'); rows.innerHTML = '';
     TESTS.forEach((Ts, i) => {
       const a = scores[i * 2] || 0, b = scores[i * 2 + 1] || 0;
-      const grp = document.createElement('div');
-      grp.className = 'bars__group'; grp.style.setProperty('--t', `var(--${Ts.id})`);
-      grp.innerHTML = `<div class="bars__cols"><i style="--h:${Math.max(a, 2)}%;animation-delay:${i * 90}ms"></i><i style="--h:${Math.max(b, 2)}%;animation-delay:${i * 90 + 45}ms"></i></div><span>${Ts.name}</span>`;
-      bars.appendChild(grp);
 
       const li = document.createElement('li');
       li.style.setProperty('--t', `var(--${Ts.id})`);
       const note = [heads[i * 2], heads[i * 2 + 1]].filter(Boolean).join(' · ');
-      li.innerHTML = `<i class="dot"></i><span class="name">${Ts.name}<small></small></span><span class="rounds">${a} + ${b}</span><span class="sum">${a + b}</span>`;
+      li.innerHTML = `<i class="swatch"></i><span class="name">${Ts.name}<small></small></span><span class="rounds">${a} + ${b}</span><span class="sum">${a + b}</span>`;
       li.querySelector('small').textContent = note;
       rows.appendChild(li);
     });
