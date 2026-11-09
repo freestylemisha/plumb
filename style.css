@@ -19,7 +19,7 @@
   --level: #1f6fd1;
   --spin: #d8402a;
   --lamp: #b97a00;
-  --hold: #6a3fc8;
+  --fold: #6a3fc8;
   --bank: #138a55;
 
   --font-display: "Archivo Narrow", "Arial Narrow", "Roboto Condensed", sans-serif;
@@ -37,7 +37,7 @@
     --ink: #f1f0ea; --ink-2: #b4b3ab; --ink-3: #7b7a73;
     --line: rgba(241, 240, 234, .11); --line-strong: rgba(241, 240, 234, .36);
     --tape: #f4c20d; --tape-2: #ffd43b; --on-tape: #141413;
-    --level: #5aa0f2; --spin: #f06a52; --lamp: #e8ab2a; --hold: #a283f2; --bank: #3fba80;
+    --level: #5aa0f2; --spin: #f06a52; --lamp: #e8ab2a; --fold: #a283f2; --bank: #3fba80;
     color-scheme: dark;
   }
 }
@@ -46,7 +46,7 @@
   --ink: #f1f0ea; --ink-2: #b4b3ab; --ink-3: #7b7a73;
   --line: rgba(241, 240, 234, .11); --line-strong: rgba(241, 240, 234, .36);
   --tape: #f4c20d; --tape-2: #ffd43b; --on-tape: #141413;
-  --level: #5aa0f2; --spin: #f06a52; --lamp: #e8ab2a; --hold: #a283f2; --bank: #3fba80;
+  --level: #5aa0f2; --spin: #f06a52; --lamp: #e8ab2a; --fold: #a283f2; --bank: #3fba80;
   color-scheme: dark;
 }
 
@@ -261,7 +261,15 @@ main {
 .verdict__text { display: grid; gap: 1px; min-width: 0; }
 .verdict__text strong { font-size: 17px; font-weight: 700; }
 .verdict__text span { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
-.run__foot .btn { flex: none; min-width: 140px; }
+.run__btns { display: flex; gap: 10px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.run__btns .btn { min-width: 140px; }
+.stage__badge {
+  position: absolute; bottom: 8px; left: 8px; margin: 0; pointer-events: none;
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--on-tape); background: var(--tape); border-radius: 2px; padding: 4px 9px;
+}
+.howcard__diagram { max-width: 420px; }
+.howcard__diagram svg { display: block; width: 100%; height: auto; }
 
 /* ---------- results ---------- */
 .end { max-width: 740px; margin: 0 auto; display: grid; gap: 26px; }
@@ -380,7 +388,8 @@ main {
 @media (max-width: 520px) {
   .run__head .meta { margin-left: 0; width: 100%; order: 3; }
   .run__foot { flex-wrap: wrap; }
-  .run__foot .btn { width: 100%; }
+  .run__btns { width: 100%; }
+  .run__btns .btn { flex: 1 1 140px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats div:nth-child(3) { border-left: 0; }
   .stats div:nth-child(n+3) { border-top: 1px solid var(--line-strong); }

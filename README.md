@@ -7,10 +7,10 @@ A daily test of physical intuition. Five tests, two rounds each, scored out of 1
 - **Level**: a glass of water tilts. Draw where the surface sits.
 - **Spin**: a wheel slows down behind a cover. Mark where the red slice stops.
 - **Lamp**: posts cast shadows. Find the hidden lamp.
-- **Hold**: hold for as long as a real event lasts.
+- **Fold**: paper is folded once or twice and a hole is punched through it. Mark where all the holes are.
 - **Bank**: a pool shot vanishes. Mark where it meets the far rail.
 
-Everyone gets the same set each day. Puzzle No. 1 is 9 November 2026.
+Every test starts with a short how-it-works card and an optional practice round that doesn't count. Everyone gets the same set each day. Puzzle No. 1 is 9 November 2026.
 
 ## Files
 

@@ -108,7 +108,7 @@
       bg: v('--bg'), bg2: v('--bg-2'), surface: v('--surface'),
       ink: v('--ink'), ink2: v('--ink-2'), ink3: v('--ink-3'),
       line: v('--line'), lineStrong: v('--line-strong'),
-      level: v('--level'), spin: v('--spin'), lamp: v('--lamp'), hold: v('--hold'), bank: v('--bank'),
+      level: v('--level'), spin: v('--spin'), lamp: v('--lamp'), fold: v('--fold'), bank: v('--bank'),
       tape: v('--tape'), onTape: v('--on-tape'),
       sans: v('--font-sans'), mono: v('--font-mono'), display: v('--font-display'),
     };
@@ -441,8 +441,25 @@
     id: 'lamp', name: 'Lamp', unit: 'metres',
     brief: 'Where is the lamp?',
     howto: 'Tap where you think the lamp is. You can drag to move it.',
-    steps: ['A hidden lamp lights up some posts.', 'Each post casts a shadow on the ground.', 'Tap where the lamp is.'],
-    tip: 'Imagine a line from the end of each shadow over the top of its post. The lines meet at the lamp.',
+    steps: [
+      'A lamp hangs somewhere above the posts, but you can’t see it.',
+      'Its light makes every post cast a shadow on the ground. Shadows always point away from the light.',
+      'Tap where you think the lamp is.',
+    ],
+    tip: 'The trick: start at the far end of a shadow, go up through the top of its post, and keep going. Do the same for the other post. The lamp is where the two lines cross. In the practice round these lines are drawn for you.',
+    diagram: `<svg viewBox="0 0 320 150" role="img" aria-label="A lamp, two posts and their shadows. Dashed lines run from the end of each shadow, over the top of its post, to the lamp.">
+      <line x1="8" y1="131" x2="312" y2="131" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <line x1="110" y1="134" x2="134.6" y2="134" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" opacity=".45"/>
+      <line x1="150" y1="134" x2="256.7" y2="134" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" opacity=".45"/>
+      <line x1="134.6" y1="131" x2="70" y2="25" stroke="var(--lamp)" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <line x1="256.7" y1="131" x2="70" y2="25" stroke="var(--lamp)" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <line x1="110" y1="131" x2="110" y2="90" stroke="var(--ink)" stroke-width="4"/><circle cx="110" cy="90" r="4.5" fill="var(--ink)"/>
+      <line x1="150" y1="131" x2="150" y2="70" stroke="var(--ink)" stroke-width="4"/><circle cx="150" cy="70" r="4.5" fill="var(--ink)"/>
+      <circle cx="70" cy="25" r="16" fill="var(--lamp)" opacity=".18"/><circle cx="70" cy="25" r="8" fill="var(--lamp)"/>
+      <text x="92" y="18" font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">hidden lamp: where the lines cross</text>
+      <text x="200" y="148" font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">end of shadow</text>
+      <text x="160" y="58" font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">top of post</text>
+    </svg>`,
     make(rng, k) {
       const n = k === 0 ? 2 : 3;
       for (let tries = 0; tries < 900; tries++) {
@@ -516,6 +533,13 @@
             g.circle(p.lx, p.ly, 17, null, C.lamp, 1.5);
           } else {
             scene();
+            if (api.practice) {
+              // practice only: draw each shadow's line back over its post
+              for (const q of p.posts) {
+                const dx = q.x - q.xs, dy = -q.h, k = (GROUND + 4) / -dy;
+                g.line(q.xs, GROUND + 4, q.xs + dx * k, GROUND + 4 + dy * k, C.lamp, 1.4, [6, 6]);
+              }
+            }
             if (mark) userMark(mark);
           }
         },
@@ -539,102 +563,191 @@
     },
   };
 
-  /* ===================================================================== HOLD
-   * Hold for as long as a real event lasts. Each target is a fixed, checkable
-   * duration: a dated record, a rule, or plain physics.
+  /* ===================================================================== FOLD
+   * A square of paper is folded in half once or twice, a hole is punched
+   * through every layer, and the paper opens out again with the holes hidden.
+   * Each fold is a mirror, so every hole has a twin across each crease.
+   * Paper coordinates run 0..1 across the square; the sheet is 20 cm wide.
    */
-  const EVENTS = [
-    // under 6 s
-    { s: 1.0, k: 'Counting', t: 'Saying “one Mississippi”', n: 'The classic way to count one second out loud.' },
-    { s: 1.0, k: 'Your body', t: 'One heartbeat, at a calm 60 beats a minute', n: '60 beats a minute is one beat every second.' },
-    { s: 3.0, k: 'Weather', t: 'Thunder reaching you from lightning 1 km away', n: 'Sound takes about 3 seconds to travel 1 km. Count to see how far a storm is.' },
-    { s: 3.0, k: 'Myth', t: 'A goldfish’s famous memory span', n: 'The “3-second memory” is a myth. Goldfish remember things for months.' },
-    { s: 5.0, k: 'Kitchen', t: 'The “five-second rule” for food dropped on the floor', n: 'Five seconds. Germs don’t actually wait, though.' },
-    { s: 5.0, k: 'Online', t: 'Waiting for YouTube’s “Skip ad” button', n: 'Skippable ads can be skipped after 5 seconds.' },
-    // 6 s and over
-    { s: 9.58, k: 'Sport', t: 'Usain Bolt running 100 metres', n: 'His world record, set in 2009.' },
-    { s: 10.0, k: 'Celebration', t: 'A New Year’s countdown, from “ten” to “Happy New Year!”', n: 'Ten seconds, one number each.' },
-    { s: 20.0, k: 'Health', t: 'Washing your hands properly', n: 'Doctors say at least 20 seconds, about two rounds of “Happy Birthday”.' },
-    { s: 19.19, k: 'Sport', t: 'Usain Bolt running 200 metres', n: 'His world record, set in 2009. Roughly twice his 100 m time.' },
-    { s: 15.0, k: 'Kitchen', t: 'A microwave set to 15 seconds', n: 'Exactly what it says on the display.' },
-  ];
-  const SHORT = EVENTS.filter((e) => e.s < 6), LONG = EVENTS.filter((e) => e.s >= 6);
-  const fmtS = (s) => (s >= 10 ? s.toFixed(2) : s.toFixed(2));
-  const PAD = { x: 400, y: 428, r: 76 };
+  const FD = { x: 220, y: 120, s: 360, cm: 20 };
+  const FOLDS = {
+    V:  { f: (q) => q[0] - .5,         n: 1,          r: (q) => [1 - q[0], q[1]] },
+    H:  { f: (q) => q[1] - .5,         n: 1,          r: (q) => [q[0], 1 - q[1]] },
+    D1: { f: (q) => q[0] - q[1],       n: Math.SQRT2, r: (q) => [q[1], q[0]] },
+    D2: { f: (q) => q[0] + q[1] - 1,   n: Math.SQRT2, r: (q) => [1 - q[1], 1 - q[0]] },
+  };
+  /* where q sits on the crease, used to animate a flap turning over */
+  const foldProj = (k, q) => { const f = FOLDS[k].f(q);
+    return k === 'V' ? [.5, q[1]] : k === 'H' ? [q[0], .5] : k === 'D1' ? [q[0] - f / 2, q[1] + f / 2] : [q[0] - f / 2, q[1] - f / 2]; };
+  const SQUARE = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  function inPoly(q, P) {
+    let c = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const [xi, yi] = P[i], [xj, yj] = P[j];
+      if ((yi > q[1]) !== (yj > q[1]) && q[0] < (xj - xi) * (q[1] - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  }
+  const toPx = (q) => [FD.x + q[0] * FD.s, FD.y + q[1] * FD.s];
+  const toPaper = (pt) => [(pt[0] - FD.x) / FD.s, (pt[1] - FD.y) / FD.s];
+  const MAT = '#2f5a4c', PAPER = '#fbfaf6', PAPER_BACK = '#e6e2d6', PAPER_INK = '#141413'; // paper is white in both themes
 
-  const Hold = {
-    id: 'hold', name: 'Hold', unit: 'seconds',
-    brief: 'How long does it last?',
-    howto: 'Press and hold the button. Let go when you think it would be over. One try.',
-    steps: ['You read an everyday moment.', 'Press and hold the button.', 'Let go when you think the moment would be over.'],
-    tip: 'There’s no clock to look at. Count in your head if it helps.',
-    lockLabel: 'Hold the button',
+  const Fold = {
+    id: 'fold', name: 'Fold', unit: 'centimetres',
+    brief: 'Where are the holes?',
+    howto: 'Tap to place a hole. Tap a hole again to remove it, or drag it to move it.',
+    steps: ['A square of paper is folded in half, once or twice.', 'A hole is punched through all the layers at once.', 'The paper is opened out flat. Tap where every hole is.'],
+    tip: 'Each fold works like a mirror: every hole has a twin on the other side of the fold. The faint creases show where the folds were.',
     make(rng, k) {
-      const list = k === 0 ? SHORT : LONG;
-      return { e: list[Math.floor(rng() * list.length)] };
+      const seqs = k === 0 ? [['V'], ['H'], ['D1'], ['D2']] : [['V', 'H'], ['H', 'V'], ['D1', 'D2'], ['D2', 'D1']];
+      const seq = seqs[Math.floor(rng() * seqs.length)];
+      const folds = seq.map((key) => ({ key, dir: rng() < .5 ? 1 : -1 }));
+      let region = SQUARE;
+      for (const fo of folds) { const F = FOLDS[fo.key]; region = clipPoly(region, (q) => -fo.dir * F.f(q)); }
+      let punch = [.3, .3];
+      for (let i = 0; i < 2000; i++) {
+        const q = [lerp(.08, .92, rng()), lerp(.08, .92, rng())];
+        if (!inPoly(q, region)) continue;
+        if (folds.some((fo) => Math.abs(FOLDS[fo.key].f(q)) / FOLDS[fo.key].n < .09)) continue;
+        punch = q; break;
+      }
+      return { folds, punch };
     },
     mount(p, api) {
-      const ev = p.e;
-      let phase = 'input', start = 0, held = 0, revealAt = 0, pressing = false;
-      api.input();
+      // regions before each fold, and the holes once opened out
+      const regions = [SQUARE];
+      for (const fo of p.folds) regions.push(clipPoly(regions[regions.length - 1], (q) => -fo.dir * FOLDS[fo.key].f(q)));
+      let holes = [p.punch];
+      for (let i = p.folds.length - 1; i >= 0; i--) holes = holes.concat(holes.map(FOLDS[p.folds[i].key].r));
+      const N = holes.length, HR = .034;
+      const FT = .9, GAP = .35, PT = .5, HOLD = .9, UT = .7;
+      const tFoldEnd = .7 + p.folds.length * (FT + GAP);
+      const tPunchEnd = tFoldEnd + PT + HOLD;
+      const tOpenEnd = tPunchEnd + p.folds.length * (UT + .15);
+      let phase = 'watch', marks = [], drag = null, revealAt = 0, match = null;
+      api.tag('Watch the folds');
 
-      function begin() { if (phase !== 'input' || pressing) return; pressing = true; start = performance.now(); }
-      function end() {
-        if (!pressing) return;
-        pressing = false;
-        held = (performance.now() - start) / 1000;
-        if (held < .12) return; // a tap, not a hold
-        phase = 'reveal'; revealAt = api.now();
-        const e = Math.log(held / ev.s);
-        const pct = Math.round(Math.abs(held / ev.s - 1) * 100);
-        api.done({
-          score: curve(e, Math.log(1.15)),
-          head: pct === 0 ? 'Spot on' : `${pct}% ${held < ev.s ? 'short' : 'long'}`,
-          detail: `You held ${fmtS(held)} s. It lasts ${fmtS(ev.s)} s.`,
-          delay: 900,
-        });
+      function mat() {
+        ctx.fillStyle = MAT; ctx.fillRect(0, 0, W, H);
+        for (let x = 0; x <= W; x += 20) g.line(x, 0, x, H, x % 100 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.16)', 1);
+        for (let y = 0; y <= H; y += 20) g.line(0, y, W, y, y % 100 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.16)', 1);
       }
+      function sheet(P, fill) {
+        g.path(P.map(toPx), true);
+        ctx.fillStyle = fill; ctx.fill();
+        ctx.strokeStyle = 'rgba(20,20,19,.55)'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+      }
+      /* fold i, turned over by fraction k (0 = flat open, 1 = folded down) */
+      function flap(i, k) {
+        const fo = p.folds[i], F = FOLDS[fo.key];
+        const R = regions[i];
+        sheet(clipPoly(R, (q) => -fo.dir * F.f(q)), PAPER);
+        const fl = clipPoly(R, (q) => fo.dir * F.f(q));
+        const c = Math.cos(Math.PI * k);
+        const moved = fl.map((q) => { const o = foldProj(fo.key, q); return [o[0] + (q[0] - o[0]) * c, o[1] + (q[1] - o[1]) * c]; });
+        sheet(moved, c < 0 ? PAPER_BACK : PAPER);
+      }
+      function creases() {
+        for (const fo of p.folds) {
+          const ends = fo.key === 'V' ? [[.5, 0], [.5, 1]] : fo.key === 'H' ? [[0, .5], [1, .5]] : fo.key === 'D1' ? [[0, 0], [1, 1]] : [[1, 0], [0, 1]];
+          const a = toPx(ends[0]), b = toPx(ends[1]);
+          g.line(a[0], a[1], b[0], b[1], 'rgba(20,20,19,.22)', 1.2, [5, 5]);
+        }
+      }
+      function hole(q, alpha = 1) {
+        const [x, y] = toPx(q);
+        ctx.globalAlpha = alpha;
+        g.circle(x, y, HR * FD.s, MAT, 'rgba(20,20,19,.6)', 1.5);
+        ctx.globalAlpha = 1;
+      }
+      function marker(q, color) {
+        const [x, y] = toPx(q), r = HR * FD.s + 4;
+        g.circle(x, y, r, null, color, 2.5);
+        g.line(x - 5, y, x + 5, y, color, 1.5); g.line(x, y - 5, x, y + 5, color, 1.5);
+      }
+      function setTag() { api.tag(`Tap where the holes are · ${marks.length} of ${N}`); }
 
       return {
         frame() {
           const t = api.now();
-          g.text(ev.k.toUpperCase(), 56, 84, { font: 'mono', size: 13, color: C.ink3, track: 1.5 });
-          const yEnd = g.wrap(ev.t, 56, 136, 688, 48, { font: 'display', size: 44, weight: 700, color: C.ink });
-          if (phase === 'input') {
-            const sq = pressing ? .95 : 1;
-            g.circle(PAD.x, PAD.y, PAD.r * sq, pressing ? C.hold : C.surface, pressing ? C.hold : C.lineStrong, 1.5);
-            if (!pressing) g.circle(PAD.x, PAD.y, PAD.r * .3, C.hold);
-            g.text(pressing ? 'Let go when it’s over' : 'Press and hold', PAD.x, PAD.y + PAD.r + 34, { size: 15, weight: 550, color: C.ink2, align: 'center' });
-          } else {
-            const k = easeOut(clamp((t - revealAt) / .8, 0, 1));
-            const noteEnd = g.wrap(ev.n, 56, yEnd + g.size(44, 'display') * .95, 688, 24, { size: 17, color: C.ink2 });
-            const max = Math.max(held, ev.s) * 1.16;
-            const x0 = 56, x1 = 744, sx = (v) => x0 + (x1 - x0) * v / max;
-            const step = max <= 2.5 ? .5 : max <= 9 ? 1 : 2;
-            const by = clamp(noteEnd + 44, 380, 470), bh = Math.max(22, g.size(13, 'mono') * 1.5);
-            const ax = by + bh * 2 + 30;
-            g.line(x0, ax, x1, ax, C.lineStrong, 1);
-            for (let v = 0; v <= max + 1e-6; v += step) {
-              g.line(sx(v), ax, sx(v), ax + 6, C.lineStrong, 1);
-              g.text(String(+v.toFixed(1)), sx(v), ax + 22, { font: 'mono', size: 12, color: C.ink3, align: 'center' });
+          mat();
+          if (phase === 'watch') {
+            if (t < .7) { sheet(SQUARE, PAPER); return; }
+            if (t < tFoldEnd) {
+              const i = Math.min(p.folds.length - 1, Math.floor((t - .7) / (FT + GAP)));
+              const k = clamp((t - .7 - i * (FT + GAP)) / FT, 0, 1);
+              flap(i, easeInOut(k));
+              return;
             }
-            g.text('s', x1, ax + 22, { font: 'mono', size: 12, color: C.ink3, align: 'right' });
-            const bar = (y, v, color, label) => {
-              const w = (sx(v) - x0) * k;
-              ctx.fillStyle = color; ctx.fillRect(x0, y, w, bh);
-              ctx.font = `500 ${g.size(13, 'mono')}px ${C.mono}`;
-              const inside = x0 + w + 10 + ctx.measureText(label).width > W - 8;
-              g.text(label, inside ? x0 + w - 8 : x0 + w + 10, y + bh / 2 + 1, { font: 'mono', size: 13, color: inside ? C.surface : C.ink, base: 'middle', align: inside ? 'right' : 'left' });
-            };
-            bar(by, held, C.ink2, `you ${fmtS(held)}`);
-            bar(by + bh + 12, ev.s, C.hold, `real ${fmtS(ev.s)}`);
+            const folded = regions[regions.length - 1];
+            if (t < tPunchEnd) {
+              sheet(folded, PAPER);
+              const k = clamp((t - tFoldEnd) / PT, 0, 1);
+              const [x, y] = toPx(p.punch);
+              if (k < 1) g.circle(x, y, HR * FD.s * (2.4 - 1.4 * easeOut(k)), null, PAPER_INK, 3);
+              hole(p.punch, easeOut(k));
+              api.tag(k < 1 ? 'Punch' : 'Through every layer');
+              return;
+            }
+            if (t < tOpenEnd) {
+              api.tag('Opening it out');
+              const j = Math.min(p.folds.length - 1, Math.floor((t - tPunchEnd) / (UT + .15)));
+              const i = p.folds.length - 1 - j;
+              const k = clamp((t - tPunchEnd - j * (UT + .15)) / UT, 0, 1);
+              flap(i, 1 - easeInOut(k));
+              return;
+            }
+            phase = 'input'; setTag(); api.input();
           }
+          sheet(SQUARE, PAPER);
+          creases();
+          if (phase === 'reveal') {
+            const k = easeOut(clamp((t - revealAt) / .6, 0, 1));
+            holes.forEach((q) => hole(q, k));
+            if (match) match.forEach(([mi, hi]) => {
+              const a = toPx(marks[mi]), b = toPx(holes[hi]);
+              g.line(a[0], a[1], b[0], b[1], PAPER_INK, 1.2, [2, 4]);
+            });
+          }
+          marks.forEach((q) => marker(q, PAPER_INK));
         },
-        down(q) { if (dist(q, [PAD.x, PAD.y]) < PAD.r + 26) begin(); },
-        up() { end(); },
-        cancel() { end(); },
-        keyDown() { begin(); return true; },
-        keyUp() { end(); },
+        down(pt) {
+          if (phase !== 'input') return;
+          const q = toPaper(pt);
+          const near = marks.findIndex((m) => dist(toPx(m), pt) < 26);
+          if (near >= 0) { drag = { i: near, moved: false, start: pt }; return; }
+          if (q[0] < 0 || q[0] > 1 || q[1] < 0 || q[1] > 1) return;
+          if (marks.length >= N) { api.tag(`All ${N} placed · drag one to move it`); return; }
+          marks.push(q); drag = { i: marks.length - 1, moved: true, start: pt };
+          setTag(); api.ready(marks.length === N);
+        },
+        move(pt) {
+          if (!drag) return;
+          if (dist(pt, drag.start) > 4) drag.moved = true;
+          const q = toPaper(pt);
+          marks[drag.i] = [clamp(q[0], 0, 1), clamp(q[1], 0, 1)];
+        },
+        up() {
+          if (drag && !drag.moved) { marks.splice(drag.i, 1); setTag(); api.ready(marks.length === N); }
+          drag = null;
+        },
+        submit() {
+          phase = 'reveal'; revealAt = api.now(); api.tag('');
+          // pair each mark with a hole so the total distance is smallest
+          const perms = (a) => a.length <= 1 ? [a] : a.flatMap((x, i) => perms(a.slice(0, i).concat(a.slice(i + 1))).map((r) => [x].concat(r)));
+          let best = Infinity;
+          for (const pm of perms([...Array(N).keys()])) {
+            const d = pm.reduce((sum, hi, mi) => sum + dist(marks[mi], holes[hi]), 0);
+            if (d < best) { best = d; match = pm.map((hi, mi) => [mi, hi]); }
+          }
+          const avg = best / N, cm = avg * FD.cm;
+          return {
+            score: curve(avg, .06),
+            head: cm < .4 ? 'Every hole spot on' : `Off by ${cm.toFixed(1)} cm on average`,
+            detail: `${N} holes from ${p.folds.length === 1 ? 'one fold' : 'two folds'}`,
+            delay: 750,
+          };
+        },
       };
     },
   };
@@ -758,7 +871,7 @@
     },
   };
 
-  const TESTS = [Level, Spin, Lamp, Hold, Bank];
+  const TESTS = [Level, Spin, Lamp, Fold, Bank];
   const ROUNDS = TESTS.length * 2;
 
   function buildSet(seed) {
@@ -787,6 +900,7 @@
     rIdx: $('#rIdx'), rTask: $('#rTask'), rName: $('#rName'), rMeta: $('#rMeta'), progress: $('#progress'),
     tag: $('#stageTag'), copy: $('#copy'), brief: $('#brief'), howto: $('#howto'),
     howCard: $('#howCard'), howKicker: $('#howKicker'), howTitle: $('#howTitle'), howSteps: $('#howSteps'), howTip: $('#howTip'),
+    howDiagram: $('#howDiagram'), skip: $('#skip'), badge: $('#pracBadge'),
     verdict: $('#verdict'), vScore: $('#vScore'), vHead: $('#vHead'), vDetail: $('#vDetail'), act: $('#act'),
   };
 
@@ -850,12 +964,18 @@
   }
 
   const api = {
+    practice: false,
     now: () => (performance.now() - mountT) / 1000,
     tag(s) { if (el.tag.textContent !== s) el.tag.textContent = s; el.tag.hidden = !s; },
     input() { state = 'input'; el.act.textContent = T.lockLabel || 'Lock in'; el.act.disabled = true; },
     ready(b) { if (state === 'input') el.act.disabled = !b; },
     done(res) { finishRound(res); },
   };
+
+  /* Each test opens with a how-it-works card. From there the player can try
+     a practice round (random, never scored, as many as they like) or skip
+     straight to the real round. */
+  let practicing = false;
 
   function startRound() {
     clearTimeout(timer);
@@ -865,75 +985,97 @@
     el.rTask.style.setProperty('--t', `var(--${T.id})`);
     el.verdict.style.setProperty('--t', `var(--${T.id})`);
     el.rName.textContent = T.name;
-    el.rMeta.textContent = `Round ${r.k + 1} of 2 · ${T.unit}`;
     el.brief.textContent = T.brief;
-    el.howto.textContent = T.howto;
-    el.copy.hidden = false; el.verdict.hidden = true;
     cv.setAttribute('aria-label', `${T.name}: ${T.brief}`);
-    api.tag('');
     readColors();
-    if (r.k === 0) {
-      // first round of a test: explain it before anything moves
-      ctrl = null;
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
-      el.howCard.style.setProperty('--t', `var(--${T.id})`);
-      el.howKicker.textContent = `Test ${r.ti + 1} of ${TESTS.length} · how it works`;
-      el.howTitle.textContent = T.name;
-      el.howSteps.innerHTML = '';
-      for (const step of T.steps) { const li = document.createElement('li'); li.textContent = step; el.howSteps.append(li); }
-      el.howTip.textContent = T.tip || '';
-      el.howCard.hidden = false;
-      el.howCard.parentElement.dataset.brief = '';
-      el.howto.textContent = '';
-      state = 'brief';
-      el.act.textContent = 'Start'; el.act.disabled = false;
-      renderProgress();
-      el.act.focus({ preventScroll: true });
-      return;
-    }
-    beginRound();
+    if (r.k === 0) { showBrief(r); return; }
+    beginRound(false);
   }
 
-  function beginRound() {
+  function showBrief(r) {
+    ctrl = null; practicing = false;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    api.tag(''); el.badge.hidden = true;
+    el.howCard.style.setProperty('--t', `var(--${T.id})`);
+    el.howKicker.textContent = `Test ${r.ti + 1} of ${TESTS.length} · how it works`;
+    el.howTitle.textContent = T.name;
+    el.howSteps.innerHTML = '';
+    for (const step of T.steps) { const li = document.createElement('li'); li.textContent = step; el.howSteps.append(li); }
+    el.howTip.textContent = T.tip || '';
+    el.howDiagram.innerHTML = T.diagram || '';
+    el.howDiagram.hidden = !T.diagram;
+    el.howCard.hidden = false;
+    el.howCard.parentElement.dataset.brief = '';
+    el.rMeta.textContent = `Round ${r.k + 1} of 2 · ${T.unit}`;
+    el.copy.hidden = false; el.verdict.hidden = true;
+    el.howto.textContent = 'A practice round doesn’t count towards your score.';
+    state = 'brief';
+    el.act.textContent = 'Try a practice round'; el.act.disabled = false;
+    el.skip.textContent = 'Skip practice'; el.skip.hidden = false;
+    renderProgress();
+    el.act.focus({ preventScroll: true });
+  }
+
+  function beginRound(practice) {
+    clearTimeout(timer);
     const r = set[idx];
+    practicing = practice;
+    api.practice = practice;
     el.howCard.hidden = true;
     delete el.howCard.parentElement.dataset.brief;
     resize();
+    el.copy.hidden = false; el.verdict.hidden = true;
     el.howto.textContent = T.howto;
+    el.rMeta.textContent = practice ? 'Practice round · doesn’t count' : `Round ${r.k + 1} of 2 · ${T.unit}`;
+    el.badge.hidden = !practice;
+    el.skip.textContent = 'Skip practice'; el.skip.hidden = !practice;
     el.act.textContent = 'Watch'; el.act.disabled = true;
     state = 'watch';
+    api.tag('');
     renderProgress();
+    const params = practice ? T.make(mulberry32((Math.random() * 2 ** 31) >>> 0), 0) : r.p;
     mountT = performance.now();
-    ctrl = T.mount(r.p, api);
+    ctrl = T.mount(params, api);
   }
 
   function finishRound(res) {
-    if (state === 'reveal' || state === 'next') return;
+    if (state === 'reveal' || state === 'next' || state === 'practised') return;
     state = 'reveal';
-    el.act.disabled = true; el.act.textContent = 'Next';
+    el.act.disabled = true;
+    el.skip.hidden = true;
     api.tag('');
-    scores[idx] = res.score; heads[idx] = res.head;
-    saveDay();
+    if (!practicing) { scores[idx] = res.score; heads[idx] = res.head; saveDay(); }
     timer = setTimeout(() => {
       el.vScore.textContent = res.score;
-      el.vHead.textContent = res.head;
-      el.vDetail.textContent = res.detail;
+      el.vHead.textContent = practicing ? `Practice: ${res.head}` : res.head;
+      el.vDetail.textContent = practicing ? `${res.detail}. This one didn’t count.` : res.detail;
       el.copy.hidden = true; el.verdict.hidden = false;
-      state = 'next';
-      renderProgress();
-      el.act.textContent = idx === ROUNDS - 1 ? 'See results' : 'Next';
+      if (practicing) {
+        state = 'practised';
+        el.act.textContent = 'Start for real';
+        el.skip.textContent = 'Practise again'; el.skip.hidden = false;
+      } else {
+        state = 'next';
+        renderProgress();
+        el.act.textContent = idx === ROUNDS - 1 ? 'See results' : 'Next';
+      }
       el.act.disabled = false;
       el.act.focus({ preventScroll: true });
     }, res.delay || 600);
   }
 
   el.act.addEventListener('click', () => {
-    if (state === 'brief') beginRound();
+    if (state === 'brief') beginRound(true);
+    else if (state === 'practised') beginRound(false);
     else if (state === 'input' && ctrl.submit) finishRound(ctrl.submit());
     else if (state === 'next') {
       if (idx >= ROUNDS - 1) { ctrl = null; renderEnd(); }
       else { idx++; startRound(); }
     }
+  });
+  el.skip.addEventListener('click', () => {
+    if (state === 'practised') beginRound(true);       // practise again
+    else if (state === 'brief' || practicing) beginRound(false); // skip to the real round
   });
 
   /* pointer input → controller, in board coordinates */
@@ -956,7 +1098,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (el.run.hidden) return;
-    if (state === 'brief' && e.key === 'Enter' && document.activeElement !== el.act) { e.preventDefault(); el.act.click(); return; }
+    if ((state === 'brief' || state === 'practised') && e.key === 'Enter' && document.activeElement !== el.act && document.activeElement !== el.skip) { e.preventDefault(); el.act.click(); return; }
     if (!ctrl) return;
     if (e.key === ' ' && ctrl.keyDown && state === 'input') { e.preventDefault(); if (!e.repeat) ctrl.keyDown(); return; }
     if ((e.key === 'Enter' || e.key === ' ') && !el.act.disabled && document.activeElement !== el.act) { e.preventDefault(); el.act.click(); }
