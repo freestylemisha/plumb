@@ -214,7 +214,7 @@
   const Level = {
     id: 'level', name: 'Level', unit: 'degrees',
     brief: 'Where is the water now?',
-    howto: 'Drag a line across the glass where the top of the water is. You can redraw it.',
+    howto: 'Drag across the glass to draw the water line. Drag its round ends to tilt it, or its middle to move it. Arrow keys work too.',
     steps: ['You see a glass with some water in it.', 'The glass tips over and the water is hidden.', 'Draw a line where the top of the water is now.'],
     tip: 'Water always stays flat, however the glass is tilted. The amount of water doesn’t change either.',
     make(rng, k) {
@@ -263,6 +263,34 @@
         for (let i = 0; i + 1 < xs.length; i += 2) g.line(xs[i], h, xs[i + 1], h, C.level, 3);
         ctx.globalAlpha = 1;
       }
+      /* where the infinite line through L meets the glass, so the handles sit on the walls */
+      function onGlass(L) {
+        const d = [L.b[0] - L.a[0], L.b[1] - L.a[1]];
+        const ts = [];
+        for (let i = 0; i < tilted.length; i++) {
+          const p1 = tilted[i], p2 = tilted[(i + 1) % tilted.length];
+          const e = [p2[0] - p1[0], p2[1] - p1[1]];
+          const den = d[0] * e[1] - d[1] * e[0];
+          if (Math.abs(den) < 1e-9) continue;
+          const w = [p1[0] - L.a[0], p1[1] - L.a[1]];
+          const t = (w[0] * e[1] - w[1] * e[0]) / den, u = (w[0] * d[1] - w[1] * d[0]) / den;
+          if (u >= 0 && u <= 1) ts.push(t);
+        }
+        if (ts.length < 2) return L;
+        const t0 = Math.min(...ts), t1 = Math.max(...ts);
+        return { a: [L.a[0] + d[0] * t0, L.a[1] + d[1] * t0], b: [L.a[0] + d[0] * t1, L.a[1] + d[1] * t1] };
+      }
+      function segDist(q, L) {
+        const d = [L.b[0] - L.a[0], L.b[1] - L.a[1]], l2 = d[0] * d[0] + d[1] * d[1] || 1;
+        const t = clamp(((q[0] - L.a[0]) * d[0] + (q[1] - L.a[1]) * d[1]) / l2, 0, 1);
+        return dist(q, [L.a[0] + d[0] * t, L.a[1] + d[1] * t]);
+      }
+      function setLine(L) {
+        line = L ? onGlass(L) : null;
+        api.ready(!!line);
+        api.tag(line ? '' : 'Drag to draw the water’s surface');
+        api.action(line ? 'Clear line' : null, () => setLine(null));
+      }
       function drawUser(L, final) {
         if (!L || dist(L.a, L.b) < 4) return;
         const d = [L.b[0] - L.a[0], L.b[1] - L.a[1]];
@@ -288,17 +316,55 @@
           if (phase === 'input' || phase === 'reveal') {
             drawGlass(tilted, th);
             if (phase === 'reveal') drawWater(tilted, hT, easeOut(clamp((t - revealAt) / .6, 0, 1)));
-            drawUser(drag || line, phase === 'reveal');
+            const L = drag && drag.mode === 'new' ? drag : line;
+            drawUser(L, phase === 'reveal');
+            if (phase === 'input' && line && !(drag && drag.mode === 'new')) {
+              for (const e of [line.a, line.b]) g.circle(e[0], e[1], 9, C.surface, C.ink, 2.5);
+            }
           }
         },
-        down(q) { if (phase === 'input') drag = { a: q, b: q }; },
-        move(q) { if (drag) drag.b = q; },
+        down(q) {
+          if (phase !== 'input') return;
+          if (line) {
+            if (dist(q, line.a) < 24) { drag = { mode: 'a' }; return; }
+            if (dist(q, line.b) < 24) { drag = { mode: 'b' }; return; }
+            if (segDist(q, line) < 16) { drag = { mode: 'move', q0: q, a0: line.a, b0: line.b }; return; }
+          }
+          drag = { mode: 'new', a: q, b: q };
+        },
+        move(q) {
+          if (!drag) return;
+          if (drag.mode === 'new') drag.b = q;
+          else if (drag.mode === 'a') line = { a: q, b: line.b };
+          else if (drag.mode === 'b') line = { a: line.a, b: q };
+          else {
+            const dx = q[0] - drag.q0[0], dy = q[1] - drag.q0[1];
+            line = { a: [drag.a0[0] + dx, drag.a0[1] + dy], b: [drag.b0[0] + dx, drag.b0[1] + dy] };
+          }
+        },
         up() {
           if (!drag) return;
-          if (dist(drag.a, drag.b) > 20) { line = drag; api.ready(true); api.tag(''); }
+          if (drag.mode === 'new') { if (dist(drag.a, drag.b) > 20) setLine(drag); }
+          else if (dist(line.a, line.b) > 20) setLine(line);
           drag = null;
         },
+        key(e) {
+          if (phase !== 'input' || !line) return false;
+          const big = e.shiftKey;
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            const dy = (e.key === 'ArrowUp' ? -1 : 1) * (big ? 8 : 2);
+            setLine({ a: [line.a[0], line.a[1] + dy], b: [line.b[0], line.b[1] + dy] });
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const r = (e.key === 'ArrowLeft' ? -1 : 1) * (big ? 2 : .5) * D2R, c = Math.cos(r), sn = Math.sin(r);
+            const m = [(line.a[0] + line.b[0]) / 2, (line.a[1] + line.b[1]) / 2];
+            const rot = (q) => [m[0] + (q[0] - m[0]) * c - (q[1] - m[1]) * sn, m[1] + (q[0] - m[0]) * sn + (q[1] - m[1]) * c];
+            setLine({ a: rot(line.a), b: rot(line.b) });
+          } else if (e.key === 'Escape' || e.key === 'Delete' || e.key === 'Backspace') setLine(null);
+          else return false;
+          return true;
+        },
         submit() {
+          api.action(null);
           const dx = line.b[0] - line.a[0], dy = line.b[1] - line.a[1];
           let ang = Math.atan2(dy, dx) / D2R;
           if (ang > 90) ang -= 180;
@@ -900,7 +966,7 @@
     rIdx: $('#rIdx'), rTask: $('#rTask'), rName: $('#rName'), rMeta: $('#rMeta'), progress: $('#progress'),
     tag: $('#stageTag'), copy: $('#copy'), brief: $('#brief'), howto: $('#howto'),
     howCard: $('#howCard'), howKicker: $('#howKicker'), howTitle: $('#howTitle'), howSteps: $('#howSteps'), howTip: $('#howTip'),
-    howDiagram: $('#howDiagram'), skip: $('#skip'), badge: $('#pracBadge'),
+    howDiagram: $('#howDiagram'), skip: $('#skip'), badge: $('#pracBadge'), stageAct: $('#stageAct'),
     verdict: $('#verdict'), vScore: $('#vScore'), vHead: $('#vHead'), vDetail: $('#vDetail'), act: $('#act'),
   };
 
@@ -966,6 +1032,7 @@
   const api = {
     practice: false,
     now: () => (performance.now() - mountT) / 1000,
+    action(label, fn) { el.stageAct.hidden = !label; el.stageAct.textContent = label || ''; el.stageAct.onclick = label ? fn : null; },
     tag(s) { if (el.tag.textContent !== s) el.tag.textContent = s; el.tag.hidden = !s; },
     input() { state = 'input'; el.act.textContent = T.lockLabel || 'Lock in'; el.act.disabled = true; },
     ready(b) { if (state === 'input') el.act.disabled = !b; },
@@ -988,6 +1055,7 @@
     el.brief.textContent = T.brief;
     cv.setAttribute('aria-label', `${T.name}: ${T.brief}`);
     readColors();
+    api.action(null);
     if (r.k === 0) { showBrief(r); return; }
     beginRound(false);
   }
@@ -1031,7 +1099,7 @@
     el.skip.textContent = 'Skip practice'; el.skip.hidden = !practice;
     el.act.textContent = 'Watch'; el.act.disabled = true;
     state = 'watch';
-    api.tag('');
+    api.tag(''); api.action(null);
     renderProgress();
     const params = practice ? T.make(mulberry32((Math.random() * 2 ** 31) >>> 0), 0) : r.p;
     mountT = performance.now();
@@ -1100,6 +1168,7 @@
     if (el.run.hidden) return;
     if ((state === 'brief' || state === 'practised') && e.key === 'Enter' && document.activeElement !== el.act && document.activeElement !== el.skip) { e.preventDefault(); el.act.click(); return; }
     if (!ctrl) return;
+    if (state === 'input' && ctrl.key && ctrl.key(e)) { e.preventDefault(); return; }
     if (e.key === ' ' && ctrl.keyDown && state === 'input') { e.preventDefault(); if (!e.repeat) ctrl.keyDown(); return; }
     if ((e.key === 'Enter' || e.key === ' ') && !el.act.disabled && document.activeElement !== el.act) { e.preventDefault(); el.act.click(); }
   });

@@ -224,11 +224,19 @@ main {
 
 .stage[data-brief] canvas { display: none; }
 .howcard {
-  position: relative; aspect-ratio: 4 / 3; width: 100%;
+  /* grows with its text on every browser, so nothing spills over the header */
+  position: relative; width: 100%; min-height: min(440px, 72vw);
   background: var(--surface); border-top: 8px solid var(--t);
   padding: clamp(14px, 4%, 30px) clamp(16px, 6%, 44px);
-  display: grid; align-content: center; gap: 10px;
+  display: grid; align-content: start; gap: 10px;
 }
+@media (min-width: 700px) { .howcard { align-content: center; } }
+.stage__act {
+  position: absolute; top: 8px; right: 8px; height: 34px; padding: 0 12px; cursor: pointer;
+  border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--surface); color: var(--ink);
+  font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: .07em; text-transform: uppercase;
+}
+.stage__act:hover { background: var(--bg-2); }
 .howcard__title {
   margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 6vw, 46px);
   line-height: 1; letter-spacing: .06em; text-transform: uppercase;
@@ -388,8 +396,8 @@ main {
 @media (max-width: 520px) {
   .run__head .meta { margin-left: 0; width: 100%; order: 3; }
   .run__foot { flex-wrap: wrap; }
-  .run__btns { width: 100%; }
-  .run__btns .btn { flex: 1 1 140px; }
+  .run__btns { width: 100%; flex-direction: column-reverse; }
+  .run__btns .btn { width: 100%; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats div:nth-child(3) { border-left: 0; }
   .stats div:nth-child(n+3) { border-top: 1px solid var(--line-strong); }
